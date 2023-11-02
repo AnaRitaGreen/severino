@@ -8,10 +8,10 @@ from source.modelos.habilidade import Habilidade
 from source.io_manager import IOManager
 
 class HabilidadeCalculadora(Habilidade):
-    __R = r'^([-,+]?\d+(\.\d+)?) ?([\+,\-,\*,\/]) ?([-,+]?\d+(\.\d+)?$)'
-    __NE = 0
-    __O = 2
-    __ND = 3
+    __regex = r'^([-,+]?\d+(\.\d+)?) ?([\+,\-,\*,\/]) ?([-,+]?\d+(\.\d+)?$)'
+    __index_numero_esquerda = 0
+    __index_operador = 2
+    __index_numero_direita = 3
 
     @property
     def textos_ajuda(self) -> list[str]:
@@ -23,33 +23,33 @@ class HabilidadeCalculadora(Habilidade):
         ]
 
     def __init__(self, io_manager: IOManager) -> None:
-        self.__io_m = io_manager
-        self.__a_r = AvaliadorRegex(HabilidadeCalculadora.__R, [
-            RegexGrupoInteresse(HabilidadeCalculadora.__NE, float),
-            RegexGrupoInteresse(HabilidadeCalculadora.__O, str),
-            RegexGrupoInteresse(HabilidadeCalculadora.__ND, float),
+        self.__io_manager = io_manager
+        self.__avaliar_regex = AvaliadorRegex(HabilidadeCalculadora.__regex, [
+            RegexGrupoInteresse(HabilidadeCalculadora.__index_numero_esquerda, float),
+            RegexGrupoInteresse(HabilidadeCalculadora.__index_operador, str),
+            RegexGrupoInteresse(HabilidadeCalculadora.__index_numero_direita, float),
         ])
 
     def execute_ou_raise(self, comando: str) -> None:
-        ne, o, nd = self.__v(comando)
-        r = self.__c(ne, o, nd)
-        self.__io_m.imprimir(r)
+        numero_esquerda, operador, numero_direita = self.__validar(comando)
+        resultado = self.__calcular(numero_esquerda, operador, numero_direita)
+        self.__io_manager.imprimir(resultado)
 
-    def __v(self, s: str) -> list[Any]:
+    def __validar(self, comando: str) -> list[Any]:
         try:
-            return self.__a_r.avaliar(s)
+            return self.__avaliar_regex.avaliar(comando)
         except ExpressaoInvalida:
             raise FormatoDesconhecido()
 
-    def __c(self, ne: float, o: str, nd: float) -> str:
-        match(o):
-            case '+': return f'{ne + nd}'
-            case '-': return f'{ne - nd}'
-            case '*': return f'{ne * nd}'
-            case '/': return self.__t_d(ne, nd)
+    def __calcular(self, numero_esquerda: float, operador: str, numero_direita: float) -> str:
+        match(operador):
+            case '+': return f'{numero_esquerda + numero_direita}'
+            case '-': return f'{numero_esquerda - numero_direita}'
+            case '*': return f'{numero_esquerda * numero_direita}'
+            case '/': return self.__tentar_dividir(numero_esquerda, numero_direita)
             case _: raise FormatoDesconhecido() # nunca atingido
 
-    def __t_d(self, ne: float, nd: float) -> str:
+    def __tentar_dividir(self, ne: float, nd: float) -> str:
         try:
             return f'{ne / nd}'
         except ZeroDivisionError:
